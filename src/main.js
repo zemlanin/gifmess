@@ -84,7 +84,6 @@ client.readdir(gifmessPath, (err, files, folder, entries) => {
       continue;
     }
     img = new Image();
-    img.crossOrigin = "anonymous";
     img.onclick = imgOnClick;
     img.dataset.original = entries[i].path;
 
@@ -93,6 +92,7 @@ client.readdir(gifmessPath, (err, files, folder, entries) => {
       img.src = cached;
     } else {
       img.src = client.thumbnailUrl(img.dataset.original);
+      img.crossOrigin = "anonymous";
       img.onload = cacheImage.bind(null, img, entries[i].versionTag);
     }
 

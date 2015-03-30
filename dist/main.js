@@ -9,7 +9,7 @@ var modal = document.createElement("div");
   modal.style["z-index"] = 10;
   modal.style.position = "fixed";
   modal.style.top = "10px";
-  modal.style.padding = "4px";
+  modal.style.padding = "5px 10px";
   modal.style.backgroundColor = "white";
   modal.style.display = "none";
   modal.style.width = "240px";
@@ -84,7 +84,6 @@ client.readdir(gifmessPath, function (err, files, folder, entries) {
       continue;
     }
     img = new Image();
-    img.crossOrigin = "anonymous";
     img.onclick = imgOnClick;
     img.dataset.original = entries[i].path;
 
@@ -93,6 +92,7 @@ client.readdir(gifmessPath, function (err, files, folder, entries) {
       img.src = cached;
     } else {
       img.src = client.thumbnailUrl(img.dataset.original);
+      img.crossOrigin = "anonymous";
       img.onload = cacheImage.bind(null, img, entries[i].versionTag);
     }
 
