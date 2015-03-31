@@ -68,10 +68,8 @@ function cacheImage(img, fileVersion) {
   canvas.height = img.height;
   canvas.width = img.width;
   ctx.drawImage(img, 0, 0);
-  var dataURL = canvas.toDataURL('image/jpeg');
-  // Clean up
-  canvas = null;
-  localStorage.setItem('cachedImg-' + fileVersion, dataURL);
+  localStorage.setItem('cachedImg-' + fileVersion, canvas.toDataURL('image/jpeg'));
+  ctx = canvas = null;
 }
 
 client.authenticate();
@@ -91,8 +89,8 @@ client.readdir(gifmessPath, (err, files, folder, entries) => {
     if (cached) {
       img.src = cached;
     } else {
-      img.src = client.thumbnailUrl(img.dataset.original);
       img.crossOrigin = "anonymous";
+      img.src = client.thumbnailUrl(img.dataset.original);
       img.onload = cacheImage.bind(null, img, entries[i].versionTag);
     }
 
