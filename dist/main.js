@@ -44,6 +44,46 @@ var modal = document.createElement("div");
   document.body.appendChild(modal);
 })();
 
+(function () {
+  var form = document.createElement("form");
+
+  form.action = "#";
+  form.onsubmit = function (ev) {
+    var query = ev.target[0].value;
+
+    if (!query) {
+      displayThumbs(0);
+      return false;
+    }
+
+    var results = [];
+
+    for (var i = 0; i < cachedEntries.length; i++) {
+      if (cachedEntries[i].path.indexOf(query) !== -1) {
+        results.push(cachedEntries[i]);
+      }
+    }
+
+    if (!results.length) {
+      return false;
+    }
+
+    Array.prototype.forEach.call(document.body.querySelectorAll("img[data-original]"), document.body.removeChild.bind(document.body));
+
+    console.log(results);
+
+    for (var i = 0; i < results.length; i++) {
+      displayThumb(results[i]);
+    }
+
+    return false;
+  };
+
+  var search = document.createElement("input");
+  form.appendChild(search);
+  document.body.appendChild(form);
+})();
+
 var gifmessPath = "/Public/gifmess/";
 
 function imgOnClick(ev) {
@@ -76,29 +116,30 @@ client.authenticate();
 
 var cachedEntries;
 
-function displayThumbs(offset) {
-  var img;
-  var cached;
+function displayThumb(fileEntity) {
+  if (!fileEntity.hasThumbnail) {
+    return;
+  }
+  var img = new Image();
+  img.onclick = imgOnClick;
+  img.dataset.original = fileEntity.path;
 
+  var cached = localStorage.getItem("cachedImg-" + fileEntity.versionTag);
+  if (cached) {
+    img.src = cached;
+  } else {
+    img.crossOrigin = "anonymous";
+    img.src = client.thumbnailUrl(img.dataset.original, { png: true });
+    img.onload = cacheImage.bind(null, img, fileEntity.versionTag);
+  }
+
+  document.body.appendChild(img);
+}
+
+function displayThumbs(offset) {
   offset = offset || 0;
   for (var i = offset; i < cachedEntries.length && i < offset + 50; i++) {
-    if (!cachedEntries[i].hasThumbnail) {
-      continue;
-    }
-    img = new Image();
-    img.onclick = imgOnClick;
-    img.dataset.original = cachedEntries[i].path;
-
-    cached = localStorage.getItem("cachedImg-" + cachedEntries[i].versionTag);
-    if (cached) {
-      img.src = cached;
-    } else {
-      img.crossOrigin = "anonymous";
-      img.src = client.thumbnailUrl(img.dataset.original, { png: true });
-      img.onload = cacheImage.bind(null, img, cachedEntries[i].versionTag);
-    }
-
-    document.body.appendChild(img);
+    displayThumb(cachedEntries[i]);
   }
 
   if (offset + 50 < cachedEntries.length) {
