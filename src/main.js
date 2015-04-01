@@ -159,7 +159,8 @@ function displayMoreButton(offset) {
 }
 
 client.readdir(gifmessPath, (err, files, folder, entries) => {
-  cachedEntries = entries;
+  cachedEntries = entries.slice();
+  cachedEntries.reverse();
 
   displayThumbs(0);
 });

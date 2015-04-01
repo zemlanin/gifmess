@@ -70,8 +70,6 @@ var modal = document.createElement("div");
 
     Array.prototype.forEach.call(document.body.querySelectorAll("img[data-original]"), document.body.removeChild.bind(document.body));
 
-    console.log(results);
-
     for (var i = 0; i < results.length; i++) {
       displayThumb(results[i]);
     }
@@ -158,7 +156,8 @@ function displayMoreButton(offset) {
 }
 
 client.readdir(gifmessPath, function (err, files, folder, entries) {
-  cachedEntries = entries;
+  cachedEntries = entries.slice();
+  cachedEntries.reverse();
 
   displayThumbs(0);
 });
