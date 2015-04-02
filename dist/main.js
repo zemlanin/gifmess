@@ -116,8 +116,6 @@ function removeMore() {
   var search = document.createElement("input");
   search.style.width = "100%";
   search.style.marginBottom = "10px";
-  search.style.border = "none";
-  search.style.outline = "1px inset";
   form.appendChild(search);
   document.body.appendChild(form);
 })();
