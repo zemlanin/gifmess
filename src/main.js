@@ -33,6 +33,7 @@ function removeMore() {
 
 () => {
   document.body.style.backgroundColor = '#DFFEE3';
+  document.body.style.margin = '0';
 
   modal.style['z-index'] = 10;
   modal.style.position = 'absolute';
@@ -119,7 +120,7 @@ function removeMore() {
     }
 
   var search = document.createElement('input');
-    search.style.width = '100%';
+    search.style.width = '99%';
     search.style.marginBottom = '10px';
     form.appendChild(search);
   document.body.appendChild(form);
