@@ -4,15 +4,17 @@ var client = new Dropbox.Client({ key: "0vbn09clhc23rc5" });
 
 var modal = document.createElement("div");
 
+var cachedEntries;
+
 (function () {
   // lazy fuck
   modal.style["z-index"] = 10;
-  modal.style.position = "fixed";
+  modal.style.position = "absolute";
   modal.style.top = "10px";
   modal.style.padding = "5px 10px";
   modal.style.backgroundColor = "white";
   modal.style.display = "none";
-  modal.style.width = "240px";
+  modal.style.maxWidth = "100%";
 
   var close = document.createElement("span");
   close.style.float = "left";
@@ -24,22 +26,22 @@ var modal = document.createElement("div");
   };
   modal.appendChild(close);
 
-  var a = document.createElement("a");
-  a.target = "_blank";
-  a.style.float = "left";
-  modal.appendChild(a);
-
-  var img = new Image();
-  img.style.width = "200px";
-  img.style.float = "left";
-  a.appendChild(img);
-
   var input = document.createElement("input");
   input.style.width = "100%";
   input.style.float = "left";
   input.readOnly = true;
   input.onclick = input.select();
   modal.appendChild(input);
+
+  var a = document.createElement("a");
+  a.target = "_blank";
+  a.style.float = "left";
+  a.style.maxWidth = "inherit";
+  var img = new Image();
+  img.style.maxWidth = "inherit";
+  a.appendChild(img);
+
+  modal.appendChild(a);
 
   document.body.appendChild(modal);
 })();
@@ -49,6 +51,7 @@ var modal = document.createElement("div");
 
   form.action = "#";
   form.onsubmit = function (ev) {
+    ev.target[0].style.backgroundColor = "white";
     var query = ev.target[0].value;
 
     if (!query) {
@@ -56,15 +59,29 @@ var modal = document.createElement("div");
       return false;
     }
 
+    var queryRegex;
+    try {
+      queryRegex = new RegExp(query, "i");
+    } catch (e) {
+      queryRegex = null;
+    }
+
     var results = [];
+    var lowerCaseName;
 
     for (var i = 0; i < cachedEntries.length; i++) {
-      if (cachedEntries[i].path.indexOf(query) !== -1) {
+      lowerCaseName = cachedEntries[i].name.toLowerCase();
+
+      if (lowerCaseName.indexOf(query) !== -1) {
+        results.push(cachedEntries[i]);
+      } else if (queryRegex && queryRegex.test(lowerCaseName)) {
         results.push(cachedEntries[i]);
       }
     }
 
     if (!results.length) {
+      ev.target[0].style.backgroundColor = "#AC281C";
+
       return false;
     }
 
@@ -111,8 +128,6 @@ function cacheImage(img, fileVersion) {
 }
 
 client.authenticate();
-
-var cachedEntries;
 
 function displayThumb(fileEntity) {
   if (!fileEntity.hasThumbnail) {
