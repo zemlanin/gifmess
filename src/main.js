@@ -120,8 +120,9 @@ function removeMore() {
     }
 
   var search = document.createElement('input');
-    search.style.width = '99%';
-    search.style.marginBottom = '10px';
+    search.style.width = '60%';
+    search.style.margin = '10px auto';
+    search.style.display = 'block';
     form.appendChild(search);
   document.body.appendChild(form);
 }();
