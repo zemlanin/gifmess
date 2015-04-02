@@ -6,6 +6,26 @@ var cachedEntries;
 
 () => {
   // lazy fuck
+  var css = document.createElement("style");
+    css.type = "text/css";
+    css.innerHTML = ".tile {width: 64px; height: 64px; margin: 3px; float: left; text-align: center}";
+  document.head.appendChild(css);
+}();
+
+function removeTiles() {
+  Array.prototype.forEach.call(
+    document.body.querySelectorAll('.tile'),
+    document.body.removeChild.bind(document.body)
+  );
+}
+
+function removeMore() {
+  if (document.body.querySelector('.tile.more')) {
+    document.body.removeChild(document.body.querySelector('.tile.more'))
+  }
+}
+
+() => {
   modal.style['z-index'] = 10;
   modal.style.position = 'absolute';
   modal.style.top = '10px';
@@ -51,6 +71,7 @@ var cachedEntries;
       var query = ev.target[0].value;
 
       if (!query) {
+        removeTiles();
         displayThumbs(0);
         return false;
       }
@@ -81,10 +102,7 @@ var cachedEntries;
         return false;
       }
 
-      Array.prototype.forEach.call(
-        document.body.querySelectorAll('img[data-original]'),
-        document.body.removeChild.bind(document.body)
-      );
+      removeTiles();
 
       for (var i = 0; i < results.length; i++) {
         displayThumb(results[i]);
@@ -136,6 +154,9 @@ function displayThumb(fileEntity) {
   if (!fileEntity.hasThumbnail) {
     return;
   }
+  var div = document.createElement('div');
+  div.className = 'tile';
+
   var img = new Image();
   img.onclick = imgOnClick;
   img.dataset.original = fileEntity.path;
@@ -149,7 +170,8 @@ function displayThumb(fileEntity) {
     img.onload = cacheImage.bind(null, img, fileEntity.versionTag);
   }
 
-  document.body.appendChild(img);
+  div.appendChild(img);
+  document.body.appendChild(div);
 }
 
 function displayThumbs(offset) {
@@ -158,19 +180,26 @@ function displayThumbs(offset) {
     displayThumb(cachedEntries[i]);
   }
 
+  removeMore();
+
   if (offset + 50 < cachedEntries.length) {
     displayMoreButton(offset + 50);
   }
 }
 
 function displayMoreButton(offset) {
-  var close = document.createElement('span');
-    close.textContent = '+';
-    close.style.padding = '10px';
-    close.style.margin = '10px';
-    close.style.cursor = 'pointer';
-    close.onclick = displayThumbs.bind(null, offset);
-    document.body.appendChild(close);
+  var div = document.createElement('div');
+    div.className = 'tile more';
+
+    var close = document.createElement('span');
+      close.textContent = '+';
+      close.style.padding = '10px';
+      close.style.margin = '10px';
+      close.style.cursor = 'pointer';
+      close.onclick = displayThumbs.bind(null, offset);
+    div.appendChild(close);
+
+  document.body.appendChild(div);
 }
 
 client.readdir(gifmessPath, (err, files, folder, entries) => {
