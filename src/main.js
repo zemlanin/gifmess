@@ -8,7 +8,13 @@ var cachedEntries;
   // lazy fuck
   var css = document.createElement("style");
     css.type = "text/css";
-    css.innerHTML = ".tile {width: 64px; height: 64px; margin: 3px; float: left; text-align: center}";
+    css.innerHTML = `
+      .tile {
+        width: 64px; height: 64px; background-color: white;
+        margin: 3px;
+        float: left; text-align: center;
+      }
+    `;
   document.head.appendChild(css);
 }();
 
@@ -26,6 +32,8 @@ function removeMore() {
 }
 
 () => {
+  document.body.style.backgroundColor = '#DFFEE3';
+
   modal.style['z-index'] = 10;
   modal.style.position = 'absolute';
   modal.style.padding = '5px 10px';
@@ -111,6 +119,10 @@ function removeMore() {
     }
 
   var search = document.createElement('input');
+    search.style.width = '100%';
+    search.style.marginBottom = '10px';
+    search.style.border = 'none';
+    search.style.outline = '1px inset';
     form.appendChild(search);
   document.body.appendChild(form);
 }();
