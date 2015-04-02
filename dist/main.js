@@ -27,7 +27,6 @@ function removeMore() {
 (function () {
   modal.style["z-index"] = 10;
   modal.style.position = "absolute";
-  modal.style.top = "10px";
   modal.style.padding = "5px 10px";
   modal.style.backgroundColor = "white";
   modal.style.display = "none";
@@ -131,6 +130,7 @@ function imgOnClick(ev) {
     input.value = shareUrl.url;
 
     modal.style.display = "block";
+    modal.style.top = window.scrollY + 10 + "px";
     input.select();
   });
 }
