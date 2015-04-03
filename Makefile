@@ -1,15 +1,12 @@
-babel = $(shell npm bin)/babel
+browserify = $(shell npm bin)/browserify
 node_static = $(shell npm bin)/static
+uglifyjs = $(shell npm bin)/uglifyjs
 
-SRC = $(wildcard src/*.js)
-DIST = $(SRC:src/%.js=dist/%.js)
-
-dist: $(DIST)
-dist/%.js: src/%.js
+dist/main.js: src/*.js src/**/*.js
 	mkdir -p $(@D)
-	$(babel) $< -o $@
+	$(browserify) src/main.js -t babelify | $(uglifyjs) --mangle > $@
 
 .PHONY: serve
 serve:
-	@echo serving at http://127.0.0.1:8000
+	@echo serving at http://localhost:8000
 	@$(node_static) . -p 8000 -z > /dev/null
