@@ -4,6 +4,14 @@ var modal = document.createElement('div');
 
 var cachedEntries;
 
+import {h, diff, patch} from 'virtual-dom';
+
+import Baz from 'bazooka';
+import modalElements from './elements/modal';
+
+Baz.register({'modal': modalElements});
+Baz.refresh();
+
 () => {
   // lazy fuck
   var css = document.createElement("style");
@@ -34,40 +42,6 @@ function removeMore() {
 () => {
   document.body.style.backgroundColor = '#DFFEE3';
   document.body.style.margin = '0';
-
-  modal.style['z-index'] = 10;
-  modal.style.position = 'absolute';
-  modal.style.padding = '5px 10px';
-  modal.style.backgroundColor = 'white';
-  modal.style.display = 'none';
-  modal.style.maxWidth = '100%';
-
-  var close = document.createElement('span');
-    close.style.float = 'left';
-    close.textContent = 'x';
-    close.style.padding = '10px';
-    close.style.cursor = 'pointer';
-    close.onclick = () => modal.style.display = 'none';
-    modal.appendChild(close);
-
-  var input = document.createElement('input');
-    input.style.width = '100%';
-    input.style.float = 'left';
-    input.readOnly = true;
-    input.onclick = input.select();
-    modal.appendChild(input);
-
-  var a = document.createElement('a');
-    a.target = '_blank';
-    a.style.float = 'left';
-    a.style.maxWidth = 'inherit';
-    var img = new Image();
-      img.style.maxWidth = 'inherit';
-      a.appendChild(img);
-
-    modal.appendChild(a);
-
-  document.body.appendChild(modal);
 }();
 
 () => {
