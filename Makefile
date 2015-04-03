@@ -1,13 +1,10 @@
 browserify = $(shell npm bin)/browserify
 node_static = $(shell npm bin)/static
+uglifyjs = $(shell npm bin)/uglifyjs
 
-SRC = $(wildcard src/*.js)
-DIST = $(SRC:src/%.js=dist/%.js)
-
-dist: $(DIST)
-dist/%.js: src/%.js
+dist/main.js: src/*.js src/**/*.js
 	mkdir -p $(@D)
-	$(browserify) $< -t babelify --outfile $@
+	$(browserify) src/main.js -t babelify | $(uglifyjs) --mangle > $@
 
 .PHONY: serve
 serve:

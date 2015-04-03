@@ -1,7 +1,7 @@
-import {h} from 'virtual-dom';
-import createElement from 'virtual-dom/create-element';
+import {h} from 'virtual-dom'
+import Element from './element'
 
-var modalTree = function modalTree() {
+function modalTree(props) {
   return h(
     'div', {
       style: {
@@ -9,8 +9,9 @@ var modalTree = function modalTree() {
         position: 'absolute',
         padding: '5px 10px',
         backgroundColor: 'white',
-        // display: 'none',
+        display: props.visible ? 'block' : 'none',
         maxWidth: '100%',
+        top: props.positionTop + 'px',
       },
     }, [
       h('span', {
@@ -18,16 +19,17 @@ var modalTree = function modalTree() {
           float: 'left',
           padding: '10px',
           cursor: 'pointer',
-          // onclick
         },
+        onclick: props.onCloseClick.bind(this),
       }, 'x'),
       h('input', {
         style: {
           width: '100%',
           float: 'left',
-          // onclick
         },
+        onclick: props.onInputClick.bind(this),
         readOnly: true,
+        value: props.href,
       }),
       h('a', {
         style: {
@@ -35,24 +37,18 @@ var modalTree = function modalTree() {
           maxWidth: 'inherit',
         },
         target: '_blank',
-        // href
+        href: props.href,
       }, [
         h('img', {
           style: {
             float: 'left',
             maxWidth: 'inherit',
           },
-          // src
+          src: props.href,
         }),
       ]),
     ]
   );
 }
 
-export default {
-  bazFunc: function bazFunc(node) {
-    var rootNode = createElement(modalTree());
-    node.appendChild(rootNode);
-  },
-}
-
+export default Element(modalTree)

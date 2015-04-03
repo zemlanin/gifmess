@@ -1,16 +1,11 @@
-var client = new Dropbox.Client({key: "0vbn09clhc23rc5"});
-
-var modal = document.createElement('div');
-
-var cachedEntries;
-
-import {h, diff, patch} from 'virtual-dom';
-
-import Baz from 'bazooka';
 import modalElements from './elements/modal';
 
-Baz.register({'modal': modalElements});
-Baz.refresh();
+var cachedEntries;
+var client = new Dropbox.Client({key: "0vbn09clhc23rc5"});
+var modal = modalElements({
+  onCloseClick: function() { this.setProps({visible: false}) },
+  onInputClick: function(ev) { ev.target.select() },
+}, document.body);
 
 () => {
   // lazy fuck
@@ -24,6 +19,9 @@ Baz.refresh();
       }
     `;
   document.head.appendChild(css);
+
+  document.body.style.backgroundColor = '#DFFEE3';
+  document.body.style.margin = '0';
 }();
 
 function removeTiles() {
@@ -38,11 +36,6 @@ function removeMore() {
     document.body.removeChild(document.body.querySelector('.tile.more'))
   }
 }
-
-() => {
-  document.body.style.backgroundColor = '#DFFEE3';
-  document.body.style.margin = '0';
-}();
 
 () => {
   var form = document.createElement('form');
@@ -103,25 +96,30 @@ function removeMore() {
 
 const gifmessPath = '/Public/gifmess/';
 
+function displayModal(shareUrl) {
+  modal.setProps({
+    href: shareUrl,
+    visible: true,
+    positionTop: window.scrollY + 10,
+  })
+}
+
 function imgOnClick(ev) {
-  client.makeUrl(
-    ev.target.dataset.original,
-    {downloadHack: true},
-    (err, shareUrl) => {
-      var img = modal.getElementsByTagName('img')[0];
-      img.src = shareUrl.url;
+  var lsKey = 'cachedShare-' + ev.target.dataset.versiontag
+  var cached = localStorage.getItem(lsKey)
 
-      var a = modal.getElementsByTagName('a')[0];
-      a.href = shareUrl.url;
-
-      var input = modal.getElementsByTagName('input')[0];
-      input.value = shareUrl.url;
-
-      modal.style.display = 'block';
-      modal.style.top = window.scrollY + 10 + 'px';
-      input.select();
-    }
-  );
+  if (cached) {
+    displayModal(cached)
+  } else {
+    client.makeUrl(
+      ev.target.dataset.original,
+      {downloadHack: true},
+      (err, shareUrl) => {
+        displayModal(shareUrl.url)
+        localStorage.setItem(lsKey, shareUrl.url)
+      }
+    );
+  }
 }
 
 function cacheImage(img, fileVersion) {
@@ -146,6 +144,7 @@ function displayThumb(fileEntity) {
   var img = new Image();
   img.onclick = imgOnClick;
   img.dataset.original = fileEntity.path;
+  img.dataset.versiontag = fileEntity.versionTag;
 
   var cached = localStorage.getItem('cachedImg-' + fileEntity.versionTag);
   if (cached) {
