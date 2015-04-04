@@ -19,18 +19,23 @@ function modalTree(props) {
           float: 'left',
           padding: '10px',
           cursor: 'pointer',
+          fontFamily: 'monospace',
         },
         onclick: props.onCloseClick.bind(this),
-      }, 'x'),
-      h('input', {
-        style: {
-          width: '100%',
-          float: 'left',
+      }, 'X'),
+      h(
+        'form', {
+          action: '#',
+          onsubmit: props.onRenameSubmit.bind(this),
         },
-        onclick: props.onInputClick.bind(this),
-        readOnly: true,
-        value: props.href,
-      }),
+        h('input', {
+          style: {
+            width: '100%',
+            float: 'left',
+          },
+          value: props.original ? props.original.replace(/\/.*\//, '') : '',
+        })
+      ),
       h('a', {
         style: {
           float: 'left',
@@ -47,6 +52,15 @@ function modalTree(props) {
           src: props.href,
         }),
       ]),
+      h('input', {
+        style: {
+          width: '100%',
+          float: 'left',
+        },
+        onclick: props.onInputClick.bind(this),
+        readOnly: true,
+        value: props.href,
+      }),
     ]
   );
 }

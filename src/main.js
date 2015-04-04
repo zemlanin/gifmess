@@ -1,10 +1,52 @@
 import modalElements from './elements/modal';
 
-var cachedEntries;
 var client = new Dropbox.Client({key: "0vbn09clhc23rc5"});
+const gifmessPath = '/Public/gifmess/';
+
+var cachedEntries;
+function readdir(callback) {
+  client.readdir(gifmessPath, (err, files, folder, entries) => {
+    cachedEntries = entries.slice()
+    cachedEntries.reverse()
+    if (callback) { callback() }
+  })
+}
+
+function updateImg(oldOriginal, fileEntity) {
+  var tile = document.querySelector(`img[data-original="${oldOriginal}"]`);
+  if (tile) {
+    tile.dataset.original = fileEntity.path
+    tile.dataset.versiontag = fileEntity.versionTag
+  }
+}
+
 var modal = modalElements({
   onCloseClick: function() { this.setProps({visible: false}) },
   onInputClick: function(ev) { ev.target.select() },
+  onRenameSubmit: function(ev) {
+    var newName = ev.target[0].value
+    var oldPath = this.props.original
+
+    if (!newName) {
+      return false
+    }
+
+    client.move(
+      oldPath,
+      gifmessPath + newName,
+      (err, fileEntity) => {
+        if (err) {
+          this.setProps({original: this.props.original})
+          return
+        }
+
+        readdir(updateImg.bind(null, this.props.original, fileEntity))
+        this.setProps({original: fileEntity.path, visible: false})
+      }
+    )
+
+    return false
+  },
 }, document.body);
 
 () => {
@@ -94,41 +136,40 @@ function removeMore() {
   document.body.appendChild(form);
 }();
 
-const gifmessPath = '/Public/gifmess/';
-
-function displayModal(shareUrl) {
+function displayModal(shareUrl, original) {
   modal.setProps({
     href: shareUrl,
+    original: original,
     visible: true,
     positionTop: window.scrollY + 10,
   })
 }
 
-function imgOnClick(ev) {
-  var lsKey = 'cachedShare-' + ev.target.dataset.versiontag
+function imgOnClick(img) {
+  var lsKey = 'cachedShare-' + img.dataset.versiontag
   var cached = localStorage.getItem(lsKey)
 
   if (cached) {
-    displayModal(cached)
+    displayModal(cached, img.dataset.original)
   } else {
     client.makeUrl(
-      ev.target.dataset.original,
+      img.dataset.original,
       {downloadHack: true},
       (err, shareUrl) => {
-        displayModal(shareUrl.url)
+        displayModal(shareUrl.url, img.dataset.original)
         localStorage.setItem(lsKey, shareUrl.url)
       }
     );
   }
 }
 
-function cacheImage(img, fileVersion) {
+function cacheImage(img) {
   var canvas = document.createElement('canvas');
   var ctx = canvas.getContext('2d');
   canvas.height = img.height;
   canvas.width = img.width;
   ctx.drawImage(img, 0, 0);
-  localStorage.setItem('cachedImg-' + fileVersion, canvas.toDataURL('image/png'));
+  localStorage.setItem('cachedImg-' + img.dataset.versiontag, canvas.toDataURL('image/png'));
   ctx = canvas = null;
 }
 
@@ -142,9 +183,10 @@ function displayThumb(fileEntity) {
   div.className = 'tile';
 
   var img = new Image();
-  img.onclick = imgOnClick;
   img.dataset.original = fileEntity.path;
   img.dataset.versiontag = fileEntity.versionTag;
+
+  div.onclick = imgOnClick.bind(null, img);
 
   var cached = localStorage.getItem('cachedImg-' + fileEntity.versionTag);
   if (cached) {
@@ -152,7 +194,7 @@ function displayThumb(fileEntity) {
   } else {
     img.crossOrigin = "anonymous";
     img.src = client.thumbnailUrl(img.dataset.original, {png: true});
-    img.onload = cacheImage.bind(null, img, fileEntity.versionTag);
+    img.onload = cacheImage.bind(null, img);
   }
 
   div.appendChild(img);
@@ -187,9 +229,4 @@ function displayMoreButton(offset) {
   document.body.appendChild(div);
 }
 
-client.readdir(gifmessPath, (err, files, folder, entries) => {
-  cachedEntries = entries.slice();
-  cachedEntries.reverse();
-
-  displayThumbs(0);
-});
+readdir(displayThumbs.bind(null, 0));
