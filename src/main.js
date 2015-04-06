@@ -13,31 +13,27 @@ onSearchStream
   .name('searchField')
   .doAction(field => { field.style.backgroundColor = 'white' })
   .flatMap(field => field.value || new Bacon.Error('Empty query'))
+  .map('.toLowerCase')
+  .name('query')
   .map(query => {
-    var queryRegex;
     try {
-      queryRegex = new RegExp(query, 'i')
+      return [query, new RegExp(query, 'i')]
     } catch (e) {
-      queryRegex = null
+      return [query, null]
     }
-
-    return [query, queryRegex]
   })
   .combine(store.pull.map('.cachedEntries'), ([query, queryRegex], entries) => {
-    var results = []
-    var lowerCaseName
-
-    for (var i = 0; i < entries.length; i++) {
-     lowerCaseName = entries[i].name.toLowerCase()
-
-     if (lowerCaseName.indexOf(query) !== -1) {
-       results.push(entries[i]);
-     } else if (queryRegex && queryRegex.test(lowerCaseName)) {
-       results.push(entries[i]);
-     }
-   }
-
-   return results
+    return R.filter(
+      R.pipe(
+        R.prop('name'),
+        R.invoke('toLowerCase', []),
+        R.anyPass([
+          R.contains(query),
+          queryRegex.test.bind(queryRegex)
+        ])
+      ),
+      entries
+    )
   })
   .flatMap(results => {
     if (results instanceof Bacon.Error) { return results }
@@ -49,13 +45,13 @@ onSearchStream
   .onError(err => {
     switch (err) {
       case 'Empty query':
-        removeTiles();
-        displayThumbs(0);
-        break
+        removeTiles()
+        displayThumbs(0)
+        break;
       case 'Empty results':
         console.error(err)
         // ev.target[0].style.backgroundColor = '#AC281C'
-        break
+        break;
     }
   })
 
