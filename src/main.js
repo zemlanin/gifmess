@@ -6,10 +6,14 @@ import getStream from './store'
 import modalElement from './elements/modal'
 import paneElement from './elements/pane'
 
+var client = new Dropbox.Client({key: "0vbn09clhc23rc5"});
+const gifmessPath = '/Public/gifmess/';
+
+var actionStream = new Bacon.Bus()
 var store = getStream('default')
-var onSearchStream = new Bacon.Bus()
-onSearchStream
-  .map('.target.0')
+actionStream
+  .filter(({type}) => type === 'searchSubmit')
+  .map('.ev.target.0')
   .name('searchField')
   .doAction(field => { field.style.backgroundColor = 'white' })
   .flatMap(field => field.value || new Bacon.Error('Empty query'))
@@ -40,13 +44,12 @@ onSearchStream
     if (!results.length) { return new Bacon.Error('Empty results') }
     return results
   })
-  .doAction(removeTiles)
-  .onValue(R.map(displayThumb))
+  .map(R.of)
+  .onValue(displayThumbs)
   .onError(err => {
     switch (err) {
       case 'Empty query':
-        removeTiles()
-        displayThumbs(0)
+        displayThumbs(0)  // TODO: reset thumbnails
         break;
       case 'Empty results':
         console.error(err)
@@ -55,21 +58,43 @@ onSearchStream
     }
   })
 
-var client = new Dropbox.Client({key: "0vbn09clhc23rc5"});
-const gifmessPath = '/Public/gifmess/';
-
-var cachedEntries;
-
-function readdir(callback) {
-  client.readdir(gifmessPath, (err, files, folder, entries) => {
-    cachedEntries = entries.slice()
-    cachedEntries = R.reverse(R.sortBy(
-      R.prop('clientModifiedAt'), entries.slice()
-    ))
-    store.push({cachedEntries: R.clone(cachedEntries)})
-    if (callback) { callback() }
-  })
+function cacheImage(img) {
+  var canvas = document.createElement('canvas');
+  var ctx = canvas.getContext('2d');
+  canvas.height = img.height;
+  canvas.width = img.width;
+  ctx.drawImage(img, 0, 0);
+  localStorage.setItem('cachedImg-' + img.dataset.versiontag, canvas.toDataURL('image/png'));
+  ctx = canvas = null;
 }
+
+actionStream
+  .filter(({type}) => type === 'thumbnailLoaded')
+  .map('.ev.target')
+  .onValue(cacheImage);
+
+function thumbnailClicked(img) {
+  var lsKey = 'cachedShare-' + img.dataset.versiontag
+  var cached = localStorage.getItem(lsKey)
+
+  if (cached) {
+    displayModal(cached, img.dataset.original)
+  } else {
+    client.makeUrl(
+      img.dataset.original,
+      {downloadHack: true},
+      (err, shareUrl) => {
+        displayModal(shareUrl.url, img.dataset.original)
+        localStorage.setItem(lsKey, shareUrl.url)
+      }
+    );
+  }
+}
+
+actionStream
+  .filter(({type}) => type === 'thumbnailClicked')
+  .map('.ev.target')
+  .onValue(thumbnailClicked);
 
 function updateImg(oldOriginal, fileEntity) {
   var tile = document.querySelector(`img[data-original="${oldOriginal}"]`);
@@ -99,7 +124,8 @@ var modal = modalElement({
           return
         }
 
-        readdir(updateImg.bind(null, this.props.original, fileEntity))
+        readdir()
+          .doAction(updateImg.bind(null, this.props.original, fileEntity))
         this.setProps({original: fileEntity.path, visible: false})
       }
     )
@@ -107,50 +133,6 @@ var modal = modalElement({
     return false
   },
 }, document.body);
-
-() => {
-  // lazy fuck
-  var css = document.createElement("style");
-    css.type = "text/css";
-    css.innerHTML = `
-      .tile {
-        width: 64px; height: 64px; background-color: white;
-        margin: 3px;
-        float: left; text-align: center;
-      }
-    `;
-  document.head.appendChild(css);
-
-  document.body.style.backgroundColor = '#DFFEE3';
-  document.body.style.margin = '0';
-}();
-
-function removeTiles() {
-  Array.prototype.forEach.call(
-    document.body.querySelectorAll('.tile'),
-    document.body.removeChild.bind(document.body)
-  );
-}
-
-function removeMore() {
-  if (document.body.querySelector('.tile.more')) {
-    document.body.removeChild(document.body.querySelector('.tile.more'))
-  }
-}
-
-() => {
-  var form = document.createElement('form');
-
-    form.action = '#';
-    form.onsubmit = ev => {onSearchStream.push(ev); return false}
-
-  var search = document.createElement('input');
-    search.style.width = '60%';
-    search.style.margin = '10px auto';
-    search.style.display = 'block';
-    form.appendChild(search);
-  document.body.appendChild(form);
-}();
 
 function displayModal(shareUrl, original) {
   modal.setProps({
@@ -161,88 +143,74 @@ function displayModal(shareUrl, original) {
   })
 }
 
-function imgOnClick(img) {
-  var lsKey = 'cachedShare-' + img.dataset.versiontag
-  var cached = localStorage.getItem(lsKey)
-
-  if (cached) {
-    displayModal(cached, img.dataset.original)
-  } else {
-    client.makeUrl(
-      img.dataset.original,
-      {downloadHack: true},
-      (err, shareUrl) => {
-        displayModal(shareUrl.url, img.dataset.original)
-        localStorage.setItem(lsKey, shareUrl.url)
+() => {
+  // lazy fuck
+  var css = document.createElement("style");
+    css.type = "text/css";
+    css.innerHTML = `
+      .tile {
+        width: 64px; height: 64px; background-color: white;
+        margin: 3px;
+        float: left; text-align: center;
+        cursor: pointer;
       }
-    );
-  }
-}
+    `;
+  document.head.appendChild(css);
 
-function cacheImage(img) {
-  var canvas = document.createElement('canvas');
-  var ctx = canvas.getContext('2d');
-  canvas.height = img.height;
-  canvas.width = img.width;
-  ctx.drawImage(img, 0, 0);
-  localStorage.setItem('cachedImg-' + img.dataset.versiontag, canvas.toDataURL('image/png'));
-  ctx = canvas = null;
-}
+  document.body.style.backgroundColor = '#DFFEE3';
+  document.body.style.margin = '0';
+}()
+
+; () => {
+  var form = document.createElement('form');
+
+    form.action = '#';
+    form.onsubmit = ev => {actionStream.push({type: 'searchSubmit', ev}); return false}
+
+  var search = document.createElement('input');
+    search.style.width = '60%';
+    search.style.margin = '10px auto';
+    search.style.display = 'block';
+    form.appendChild(search);
+  document.body.appendChild(form);
+}()
+
+var pane = paneElement({client, actionStream}, document.body)
 
 client.authenticate();
 
-function displayThumb(fileEntity) {
-  if (!fileEntity.hasThumbnail) {
-    return;
-  }
-  var div = document.createElement('div');
-  div.className = 'tile';
-
-  var img = new Image();
-  img.dataset.original = fileEntity.path;
-  img.dataset.versiontag = fileEntity.versionTag;
-
-  div.onclick = imgOnClick.bind(null, img);
-
-  var cached = localStorage.getItem('cachedImg-' + fileEntity.versionTag);
-  if (cached) {
-    img.src = cached;
-  } else {
-    img.crossOrigin = "anonymous";
-    img.src = client.thumbnailUrl(img.dataset.original, {png: true});
-    img.onload = cacheImage.bind(null, img);
-  }
-
-  div.appendChild(img);
-  document.body.appendChild(div);
+function displayThumbs([thumbnails, more]) {
+  pane.setProps({
+    thumbnails,
+    more,
+  })
 }
 
-function displayThumbs(offset) {
-  offset = offset || 0;
-  for (var i = offset; i < cachedEntries.length && i < offset + 50; i++) {
-    displayThumb(cachedEntries[i]);
-  }
-
-  removeMore();
-
-  if (offset + 50 < cachedEntries.length) {
-    displayMoreButton(offset + 50);
-  }
+function readdir() {
+  return Bacon.fromCallback(callback => {
+    client.readdir(
+      gifmessPath,
+      (err, files, folder, entries) => callback({err, files, folder, entries})
+    )
+  })
+  .map('.entries')
+  .map(R.sortBy(R.prop('clientModifiedAt')))
+  .map(R.reverse)
+  .doAction(
+    R.pipe(
+      R.createMapEntry('cachedEntries'),
+      store.push
+    )
+  )
 }
 
-function displayMoreButton(offset) {
-  var div = document.createElement('div');
-    div.className = 'tile more';
-
-    var close = document.createElement('span');
-      close.textContent = '+';
-      close.style.padding = '10px';
-      close.style.margin = '10px';
-      close.style.cursor = 'pointer';
-      close.onclick = displayThumbs.bind(null, offset);
-    div.appendChild(close);
-
-  document.body.appendChild(div);
-}
-
-readdir(displayThumbs.bind(null, 0));
+readdir()
+  .map(R.of)
+  .map(R.ap([
+    R.slice(0, 50), // thumbnails
+    R.pipe(         // more
+      R.length,
+      R.lt(50)
+    )
+  ]))
+  .onValue(displayThumbs);

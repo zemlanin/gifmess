@@ -1,7 +1,11 @@
+import R from 'ramda'
 import {h} from 'virtual-dom'
+
 import Element from './element'
 
-function tileTree(props) {
+function streamPush(actionStream, type, ev) { actionStream.push({type, ev}) }
+
+function thumbTree(props) {
   if (!props.hasThumbnail) {
     return h()
   }
@@ -16,28 +20,48 @@ function tileTree(props) {
   } else {
     crossOrigin = "anonymous"
     src = props.client.thumbnailUrl(props.path, {png: true})
-    // onload = cacheImage.bind(null, img)
+    onload = streamPush.bind(null, props.actionStream, 'thumbnailLoaded')
   }
 
   return h('div', {
       className: 'tile',
-      // onclick = imgOnClick.bind(null, img);
+      onclick: streamPush.bind(null, props.actionStream, 'thumbnailClicked'),
     },
     h('img', {
-        'data-original': props.path,
-        'data-versiontag': props.versionTag,
-        'src': src,
-        'cross-origin': crossOrigin,
-        'onload': onload,
+        onload,
+        crossOrigin,
+        dataset: {
+          original: props.path,
+          versiontag: props.versionTag,
+        },
+        src,
       }
     )
   )
 }
 
+function moreButtonTree() {
+  return h('div', {
+      className: 'tile',
+      // TODO
+      // onclick = displayThumbs.bind(null, offset);
+    },
+    h('span', {style: {padding: '10px'}}, '+')
+  )
+}
+
 function paneTree(props) {
+  if (!props || !props.thumbnails) { return h('div') }
+
   return h('div',
     {},
-    props.thumbnails.map(tileTree)
+    [
+      props.thumbnails.map(R.pipe(
+        R.merge(R.pick(['actionStream', 'client'], props)),
+        thumbTree
+      )),
+      props.more ? moreButtonTree() : ''
+    ]
   )
 }
 
