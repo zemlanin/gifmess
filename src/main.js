@@ -26,7 +26,7 @@ onSearchStream
     return R.filter(
       R.pipe(
         R.prop('name'),
-        R.invoke('toLowerCase', []),
+        R.toLower,
         R.anyPass([
           R.contains(query),
           queryRegex.test.bind(queryRegex)
@@ -63,8 +63,10 @@ var cachedEntries;
 function readdir(callback) {
   client.readdir(gifmessPath, (err, files, folder, entries) => {
     cachedEntries = entries.slice()
-    cachedEntries.reverse()
-    store.push({cachedEntries})
+    cachedEntries = R.reverse(R.sortBy(
+      R.prop('clientModifiedAt'), entries.slice()
+    ))
+    store.push({cachedEntries: R.clone(cachedEntries)})
     if (callback) { callback() }
   })
 }
