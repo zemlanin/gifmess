@@ -18,7 +18,9 @@
     "uglify-js": "^2.4.19"
   },
   "dependencies": {
+    "baconjs": "baconjs/bacon.js#0.8",
     "lodash.merge": "^3.1.0",
+    "ramda": "^0.13.0",
     "virtual-dom": "^2.0.1"
   }
 }

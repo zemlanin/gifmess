@@ -2,8 +2,7 @@ import {h} from 'virtual-dom'
 import Element from './element'
 
 function modalTree(props) {
-  return h(
-    'div', {
+  return h('div', {
       style: {
         'z-index': 10,
         position: 'absolute',
@@ -23,8 +22,7 @@ function modalTree(props) {
         },
         onclick: props.onCloseClick.bind(this),
       }, 'X'),
-      h(
-        'form', {
+      h('form', {
           action: '#',
           onsubmit: props.onRenameSubmit.bind(this),
         },

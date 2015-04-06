@@ -1,13 +1,74 @@
-import modalElements from './elements/modal';
+import R from 'ramda'
+import Bacon from 'baconjs'
+
+import getStream from './store'
+
+import modalElement from './elements/modal'
+import paneElement from './elements/pane'
+
+var store = getStream('default')
+var onSearchStream = new Bacon.Bus()
+onSearchStream
+  .map('.target.0')
+  .name('searchField')
+  .doAction(field => { field.style.backgroundColor = 'white' })
+  .flatMap(field => field.value || new Bacon.Error('Empty query'))
+  .map(query => {
+    var queryRegex;
+    try {
+      queryRegex = new RegExp(query, 'i')
+    } catch (e) {
+      queryRegex = null
+    }
+
+    return [query, queryRegex]
+  })
+  .combine(store.pull.map('.cachedEntries'), ([query, queryRegex], entries) => {
+    var results = []
+    var lowerCaseName
+
+    for (var i = 0; i < entries.length; i++) {
+     lowerCaseName = entries[i].name.toLowerCase()
+
+     if (lowerCaseName.indexOf(query) !== -1) {
+       results.push(entries[i]);
+     } else if (queryRegex && queryRegex.test(lowerCaseName)) {
+       results.push(entries[i]);
+     }
+   }
+
+   return results
+  })
+  .flatMap(results => {
+    if (results instanceof Bacon.Error) { return results }
+    if (!results.length) { return new Bacon.Error('Empty results') }
+    return results
+  })
+  .doAction(removeTiles)
+  .onValue(R.map(displayThumb))
+  .onError(err => {
+    switch (err) {
+      case 'Empty query':
+        removeTiles();
+        displayThumbs(0);
+        break
+      case 'Empty results':
+        console.error(err)
+        // ev.target[0].style.backgroundColor = '#AC281C'
+        break
+    }
+  })
 
 var client = new Dropbox.Client({key: "0vbn09clhc23rc5"});
 const gifmessPath = '/Public/gifmess/';
 
 var cachedEntries;
+
 function readdir(callback) {
   client.readdir(gifmessPath, (err, files, folder, entries) => {
     cachedEntries = entries.slice()
     cachedEntries.reverse()
+    store.push({cachedEntries})
     if (callback) { callback() }
   })
 }
@@ -20,7 +81,7 @@ function updateImg(oldOriginal, fileEntity) {
   }
 }
 
-var modal = modalElements({
+var modal = modalElement({
   onCloseClick: function() { this.setProps({visible: false}) },
   onInputClick: function(ev) { ev.target.select() },
   onRenameSubmit: function(ev) {
@@ -83,50 +144,7 @@ function removeMore() {
   var form = document.createElement('form');
 
     form.action = '#';
-    form.onsubmit = (ev) => {
-      ev.target[0].style.backgroundColor = 'white'
-      var query = ev.target[0].value;
-
-      if (!query) {
-        removeTiles();
-        displayThumbs(0);
-        return false;
-      }
-
-      var queryRegex;
-      try {
-        queryRegex = new RegExp(query, 'i')
-      } catch (e) {
-        queryRegex = null
-      }
-
-      var results = [];
-      var lowerCaseName;
-
-      for (var i = 0; i < cachedEntries.length; i++) {
-        lowerCaseName = cachedEntries[i].name.toLowerCase()
-
-        if (lowerCaseName.indexOf(query) !== -1) {
-          results.push(cachedEntries[i]);
-        } else if (queryRegex && queryRegex.test(lowerCaseName)) {
-          results.push(cachedEntries[i]);
-        }
-      }
-
-      if (!results.length) {
-        ev.target[0].style.backgroundColor = '#AC281C'
-
-        return false;
-      }
-
-      removeTiles();
-
-      for (var i = 0; i < results.length; i++) {
-        displayThumb(results[i]);
-      }
-
-      return false;
-    }
+    form.onsubmit = ev => {onSearchStream.push(ev); return false}
 
   var search = document.createElement('input');
     search.style.width = '60%';
