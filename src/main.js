@@ -49,7 +49,17 @@ actionStream
   .onError(err => {
     switch (err) {
       case 'Empty query':
-        displayThumbs(0)  // TODO: reset thumbnails
+        store.pull
+          .map('.cachedEntries')
+          .map(R.of)
+          .map(R.ap([
+            R.slice(0, 50), // thumbnails
+            R.pipe(         // more
+              R.length,
+              R.lt(50)
+            )
+          ]))
+          .onValue(displayThumbs)
         break;
       case 'Empty results':
         console.error(err)
