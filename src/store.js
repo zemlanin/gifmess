@@ -1,5 +1,5 @@
 import Bacon from 'baconjs'
-import merge from 'lodash.merge'
+import {merge} from 'ramda'
 
 function StoreStream(name) {
   var pushStream = new Bacon.Bus();

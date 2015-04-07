@@ -1,4 +1,4 @@
-import merge from 'lodash.merge'
+import {merge} from 'ramda'
 
 import {diff, patch} from 'virtual-dom'
 import createElement from 'virtual-dom/create-element'
