@@ -1,15 +1,19 @@
 import R from 'ramda'
+import Baz from 'bazooka'
 import Bacon from 'baconjs'
 
 import getStream from './store'
 
 import modalElement from './elements/modal'
 import paneElement from './elements/pane'
+import {bazFunc as bazSearch} from './elements/search'
 
 var client = new Dropbox.Client({key: "0vbn09clhc23rc5"});
 const gifmessPath = '/Public/gifmess/';
 
 var actionStream = new Bacon.Bus()
+var reactionStream = new Bacon.Bus()
+
 var store = getStream('default')
 actionStream
   .filter(({type}) => type === 'searchSubmit')
@@ -45,22 +49,24 @@ actionStream
     return results
   })
   .map(R.of)
+  .flatMapError(err => {
+    if (err === 'Empty query') {
+      return store.pull
+        .map('.cachedEntries')
+        .map(R.of)
+        .map(R.ap([
+          R.slice(0, 50), // thumbnails
+          R.pipe(         // more
+            R.length,
+            R.lt(50)
+          )
+        ]))
+    }
+    return new Bacon.Error(err)
+  })
   .onValue(displayThumbs)
   .onError(err => {
     switch (err) {
-      case 'Empty query':
-        store.pull
-          .map('.cachedEntries')
-          .map(R.of)
-          .map(R.ap([
-            R.slice(0, 50), // thumbnails
-            R.pipe(         // more
-              R.length,
-              R.lt(50)
-            )
-          ]))
-          .onValue(displayThumbs)
-        break;
       case 'Empty results':
         console.error(err)
         // ev.target[0].style.backgroundColor = '#AC281C'
@@ -171,20 +177,6 @@ function displayModal(shareUrl, original) {
   document.body.style.margin = '0';
 }()
 
-; () => {
-  var form = document.createElement('form');
-
-    form.action = '#';
-    form.onsubmit = ev => {actionStream.push({type: 'searchSubmit', ev}); return false}
-
-  var search = document.createElement('input');
-    search.style.width = '60%';
-    search.style.margin = '10px auto';
-    search.style.display = 'block';
-    form.appendChild(search);
-  document.body.appendChild(form);
-}()
-
 var pane = paneElement({client, actionStream}, document.body)
 
 client.authenticate();
@@ -223,4 +215,9 @@ readdir()
       R.lt(50)
     )
   ]))
-  .onValue(displayThumbs);
+  .onValue(displayThumbs)
+
+Baz.register({
+  'search': bazSearch.bind(null, reactionStream, actionStream),
+})
+Baz.refresh()
