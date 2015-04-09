@@ -16,7 +16,7 @@ var reactionStream = new Bacon.Bus()
 
 var store = getStream('default')
 actionStream
-  .filter(({type}) => type === 'searchSubmit')
+  .filter(R.propEq('type', 'searchSubmit'))
   .map('.ev.target.0')
   .name('searchField')
   .doAction(field => { field.style.backgroundColor = 'white' })
@@ -37,7 +37,7 @@ actionStream
         R.toLower,
         R.anyPass([
           R.contains(query),
-          queryRegex.test.bind(queryRegex)
+          queryRegex ? queryRegex.test.bind(queryRegex) : R.F
         ])
       ),
       entries
@@ -85,7 +85,7 @@ function cacheImage(img) {
 }
 
 actionStream
-  .filter(({type}) => type === 'thumbnailLoaded')
+  .filter(R.propEq('type', 'thumbnailLoaded'))
   .map('.ev.target')
   .onValue(cacheImage);
 
@@ -108,9 +108,20 @@ function thumbnailClicked(img) {
 }
 
 actionStream
-  .filter(({type}) => type === 'thumbnailClicked')
+  .filter(R.propEq('type', 'thumbnailClicked'))
   .map('.ev.target')
   .onValue(thumbnailClicked);
+
+store.pull
+  .map('.cachedEntries')
+  .sampledBy(
+    actionStream
+      .filter(R.propEq('type', 'displayMore'))
+      .map('.offset')
+      .map(R.add(50)),
+    (entries, offset) => [R.slice(0, offset, entries), entries.length > offset]
+  )
+  .onValue(displayThumbs);
 
 function updateImg(oldOriginal, fileEntity) {
   var tile = document.querySelector(`img[data-original="${oldOriginal}"]`);

@@ -40,27 +40,32 @@ function thumbTree(props) {
   )
 }
 
-function moreButtonTree() {
+function moreButtonTree(props) {
+  var {actionStream, offset} = props
+
   return h('div', {
       className: 'tile',
-      // TODO
-      // onclick = displayThumbs.bind(null, offset);
+      onclick: ev => { actionStream.push({type: 'displayMore', ev, offset}) },
     },
     h('span', {style: {padding: '10px'}}, '+')
   )
 }
 
 function paneTree(props) {
-  if (!props || !props.thumbnails) { return h('div') }
+  var {thumbnails, client, actionStream, more} = props
+
+  if (!thumbnails) { return h('div') }
+
+  var offset = thumbnails.length
 
   return h('div',
     {},
     [
-      props.thumbnails.map(R.pipe(
-        R.merge(R.pick(['actionStream', 'client'], props)),
+      thumbnails.map(R.pipe(
+        R.merge({client, actionStream}),
         thumbTree
       )),
-      props.more ? moreButtonTree() : ''
+      props.more ? moreButtonTree({actionStream, offset}) : ''
     ]
   )
 }
