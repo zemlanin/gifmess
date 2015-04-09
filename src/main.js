@@ -20,7 +20,8 @@ actionStream
   .map('.ev.target.0')
   .name('searchField')
   .doAction(field => { field.style.backgroundColor = 'white' })
-  .flatMap(field => field.value || new Bacon.Error('Empty query'))
+  .map('.value')
+  .flatMap(R.flip(R.or)(new Bacon.Error('Empty query')))
   .map('.toLowerCase')
   .name('query')
   .map(query => {
@@ -43,11 +44,11 @@ actionStream
       entries
     )
   })
-  .flatMap(results => {
-    if (results instanceof Bacon.Error) { return results }
-    if (!results.length) { return new Bacon.Error('Empty results') }
-    return results
-  })
+  .flatMap(R.cond(
+    [R.is(Bacon.Error), R.identity],
+    [R.length, R.identity],
+    [R.T, R.always(new Bacon.Error('Empty results'))]
+  ))
   .map(R.of)
   .flatMapError(err => {
     if (err === 'Empty query') {
@@ -65,14 +66,10 @@ actionStream
     return new Bacon.Error(err)
   })
   .onValue(displayThumbs)
-  .onError(err => {
-    switch (err) {
-      case 'Empty results':
-        console.error(err)
-        // ev.target[0].style.backgroundColor = '#AC281C'
-        break;
-    }
-  })
+  .onError(R.cond(
+    // ev.target[0].style.backgroundColor = '#AC281C'
+    [R.eq('Empty results'), console.error.bind(console)]
+  ))
 
 function cacheImage(img) {
   var canvas = document.createElement('canvas');
