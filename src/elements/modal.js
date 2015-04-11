@@ -2,15 +2,17 @@ import {h} from 'virtual-dom'
 import Element from './element'
 
 function modalTree(props) {
+  var {actionStream, visible, positionTop, original, href} = props
+
   return h('div', {
       style: {
         'z-index': 10,
         position: 'absolute',
         padding: '5px 10px',
         backgroundColor: 'white',
-        display: props.visible ? 'block' : 'none',
+        display: visible ? 'block' : 'none',
         maxWidth: '100%',
-        top: props.positionTop + 'px',
+        top: positionTop + 'px',
       },
     }, [
       h('span', {
@@ -20,18 +22,18 @@ function modalTree(props) {
           cursor: 'pointer',
           fontFamily: 'monospace',
         },
-        onclick: props.onCloseClick.bind(this),
+        onclick: actionStream.push.bind(actionStream, {type: 'modalClose'}),
       }, 'X'),
       h('form', {
           action: '#',
-          onsubmit: props.onRenameSubmit.bind(this),
+          onsubmit: ev => {actionStream.push({type: 'renameSubmit', ev, original}); return false}
         },
         h('input', {
           style: {
             width: '100%',
             float: 'left',
           },
-          value: props.original ? props.original.replace(/\/.*\//, '') : '',
+          value: original ? original.replace(/\/.*\//, '') : '',
         })
       ),
       h('a', {
@@ -40,14 +42,14 @@ function modalTree(props) {
           maxWidth: 'inherit',
         },
         target: '_blank',
-        href: props.href,
+        href: href,
       }, [
         h('img', {
           style: {
             float: 'left',
             maxWidth: 'inherit',
           },
-          src: props.href,
+          src: href,
         }),
       ]),
       h('input', {
@@ -55,9 +57,8 @@ function modalTree(props) {
           width: '100%',
           float: 'left',
         },
-        onclick: props.onInputClick.bind(this),
         readOnly: true,
-        value: props.href,
+        value: href,
       }),
     ]
   );

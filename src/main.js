@@ -14,6 +14,8 @@ const gifmessPath = '/Public/gifmess/';
 var actionStream = new Bacon.Bus()
 var reactionStream = new Bacon.Bus()
 
+var modal = modalElement({actionStream}, document.body)
+
 var store = getStream('default')
 actionStream
   .filter(R.propEq('type', 'searchSubmit'))
@@ -71,6 +73,24 @@ actionStream
     [R.eq('Empty results'), console.error.bind(console)]
   ))
 
+function readdir() {
+  return Bacon.fromCallback(callback => {
+    client.readdir(
+      gifmessPath,
+      (err, files, folder, entries) => callback({err, files, folder, entries})
+    )
+  })
+  .map('.entries')
+  .map(R.sortBy(R.prop('clientModifiedAt')))
+  .map(R.reverse)
+  .doAction(
+    R.pipe(
+      R.createMapEntry('cachedEntries'),
+      store.push
+    )
+  )
+}
+
 function cacheImage(img) {
   var canvas = document.createElement('canvas');
   var ctx = canvas.getContext('2d');
@@ -85,6 +105,15 @@ actionStream
   .filter(R.propEq('type', 'thumbnailLoaded'))
   .map('.ev.target')
   .onValue(cacheImage);
+
+function displayModal(shareUrl, original) {
+  modal.setProps({
+    href: shareUrl,
+    original: original,
+    visible: true,
+    positionTop: window.scrollY + 10,
+  })
+}
 
 function thumbnailClicked(img) {
   var lsKey = 'cachedShare-' + img.dataset.versiontag
@@ -120,6 +149,16 @@ store.pull
   )
   .onValue(displayThumbs);
 
+store.pull
+  .map('.cachedEntries')
+  .sampledBy(
+    actionStream
+      .filter(R.propEq('type', 'refreshDisplay'))
+      .map(50),
+    (entries, offset) => [R.slice(0, offset, entries), entries.length > offset]
+  )
+  .onValue(displayThumbs);
+
 function updateImg(oldOriginal, fileEntity) {
   var tile = document.querySelector(`img[data-original="${oldOriginal}"]`);
   if (tile) {
@@ -128,46 +167,47 @@ function updateImg(oldOriginal, fileEntity) {
   }
 }
 
-var modal = modalElement({
-  onCloseClick: function() { this.setProps({visible: false}) },
-  onInputClick: function(ev) { ev.target.select() },
-  onRenameSubmit: function(ev) {
+actionStream
+  .filter(R.propEq('type', 'modalClose'))
+  .map({visible: false})
+  .onValue(modal.setProps.bind(modal))
+
+actionStream
+  .filter(R.propEq('type', 'renameSubmit'))
+  .flatMap(({ev, original: oldPath}) => {
     var newName = ev.target[0].value
-    var oldPath = this.props.original
 
-    if (!newName) {
-      return false
-    }
+    if (!newName) { return Bacon.never() }
 
-    client.move(
+    return Bacon.fromCallback(callback => client.move(
       oldPath,
       gifmessPath + newName,
-      (err, fileEntity) => {
-        if (err) {
-          this.setProps({original: this.props.original})
-          return
-        }
-
-        readdir()
-          .doAction(updateImg.bind(null, this.props.original, fileEntity))
-        this.setProps({original: fileEntity.path, visible: false})
-      }
-    )
-
-    return false
-  },
-}, document.body);
-
-function displayModal(shareUrl, original) {
-  modal.setProps({
-    href: shareUrl,
-    original: original,
-    visible: true,
-    positionTop: window.scrollY + 10,
+      (err, fileEntity) => callback({oldPath, err, fileEntity})
+    ))
   })
-}
+  .flatMap(R.cond(
+    [R.prop('err'), R.always(new Bacon.Error('Failed rename'))],
+    [R.T, R.pick(['oldPath', 'fileEntity'])]
+  ))
+  .doAction(R.pipe(
+    R.prop('fileEntity'),
+    R.prop('path'),
+    R.createMapEntry('original'),
+    R.merge({visible: false}),
+    modal.setProps.bind(modal)
+  ))
+  .flatMap(({oldPath, fileEntity}) => {
+    return readdir()
+      .doAction(updateImg.bind(null, oldPath, fileEntity))
+      .doAction(actionStream.push.bind({type: 'refreshDisplay'}))
+  })
+  .onError(R.pipe(
+    R.prop('oldPath'),
+    R.createMapEntry('original'),
+    modal.setProps.bind(modal)
+  ))
 
-() => {
+; () => {
   // lazy fuck
   var css = document.createElement("style");
     css.type = "text/css";
@@ -196,34 +236,10 @@ function displayThumbs([thumbnails, more]) {
   })
 }
 
-function readdir() {
-  return Bacon.fromCallback(callback => {
-    client.readdir(
-      gifmessPath,
-      (err, files, folder, entries) => callback({err, files, folder, entries})
-    )
-  })
-  .map('.entries')
-  .map(R.sortBy(R.prop('clientModifiedAt')))
-  .map(R.reverse)
-  .doAction(
-    R.pipe(
-      R.createMapEntry('cachedEntries'),
-      store.push
-    )
+actionStream
+  .plug(
+    readdir().map({type: 'refreshDisplay'})
   )
-}
-
-readdir()
-  .map(R.of)
-  .map(R.ap([
-    R.slice(0, 50), // thumbnails
-    R.pipe(         // more
-      R.length,
-      R.lt(50)
-    )
-  ]))
-  .onValue(displayThumbs)
 
 Baz.register({
   'search': bazSearch.bind(null, reactionStream, actionStream),
